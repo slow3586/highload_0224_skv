@@ -1,0 +1,36 @@
+services:
+  spring-app:
+    build: .
+    entrypoint: ["mvn", "spring-boot:run", "-Dmaven.test.skip=true"]
+    depends_on:
+      - db
+    environment:
+      - spring.datasource.url=jdbc:postgresql://db:5434/postgres
+      - spring.datasource.username=postgres
+      - spring.datasource.password=postgres
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: curl -sS http://127.0.0.1:8080 || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 3
+  db:
+    image: postgres
+    container_name: db
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGPORT: 5434
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5434:5434"
+    expose:
+      - "5434"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
