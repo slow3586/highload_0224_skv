@@ -1,0 +1,3 @@
+Label,# Samples,Average,Min,Max,Std. Dev.,Error %,Throughput,Received KB/sec,Sent KB/sec,Avg. Bytes
+/user/search,10000,174,14,591,55.28,0.000%,540.10262,5370.43,95.47,10182.0
+TOTAL,10000,174,14,591,55.28,0.000%,540.10262,5370.43,95.47,10182.0

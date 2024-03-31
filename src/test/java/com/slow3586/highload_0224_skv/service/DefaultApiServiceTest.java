@@ -12,9 +12,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,13 +29,14 @@ class DefaultApiServiceTest extends Mockito {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final String USER_PASSWORD = "USER_PASSWORD";
     @Mock UserRepository userRepository;
-    @InjectMocks DefaultApiService defaultApiService;
+    @Spy PasswordService passwordService = new PasswordService();
+    @Spy @InjectMocks DefaultApiService defaultApiService;
 
     @Test
     void loginPost() {
         UserEntity userEntity = UserEntity.builder()
             .id(USER_ID)
-            .password(DefaultApiService.bCryptPasswordEncoder.encode(USER_PASSWORD))
+            .password(passwordService.encode(USER_PASSWORD))
             .build();
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(userEntity));
 
@@ -82,5 +85,17 @@ class DefaultApiServiceTest extends Mockito {
 
         assertNotNull(result);
         assertEquals(USER_ID.toString(), result.getId());
+    }
+
+    @Test
+    void userSearchGet() {
+        String FIRST = "FIRST";
+        String SECOND = "SECOND";
+        UserEntity userEntity = mock(UserEntity.class);
+        when(userRepository.searchAllByFirstNameContainingAndSecondNameContaining(FIRST, SECOND))
+            .thenReturn(List.of(userEntity));
+        defaultApiService.userSearchGet(FIRST, SECOND);
+        verify(userRepository).searchAllByFirstNameContainingAndSecondNameContaining(FIRST, SECOND);
+        verify(defaultApiService).userEntityToUser(userEntity);
     }
 }

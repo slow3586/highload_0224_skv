@@ -10,3 +10,6 @@ spring:
 server:
   error:
     include-message: always
+app:
+  debug:
+    fillDbWithRandomData: true

@@ -1,0 +1,8 @@
+EXPLAIN SELECT id, first_name, second_name, birthdate, biography, city, password
+	FROM public.users
+	WHERE first_name like '%ико%' and second_name like '%ико%';
+	
+"Bitmap Heap Scan on users  (cost=1513.31..1517.32 rows=1 width=2116)"
+"  Recheck Cond: (((first_name)::text ~~ '%ико%'::text) AND ((second_name)::text ~~ '%ико%'::text))"
+"  ->  Bitmap Index Scan on users_name_idx  (cost=0.00..1513.31 rows=1 width=0)"
+"        Index Cond: (((first_name)::text ~~ '%ико%'::text) AND ((second_name)::text ~~ '%ико%'::text))"

@@ -7,8 +7,8 @@ import com.slow3586.highload_0224_skv.api.model.User;
 import com.slow3586.highload_0224_skv.api.model.UserRegisterPost200Response;
 import com.slow3586.highload_0224_skv.api.model.UserRegisterPostRequest;
 import com.slow3586.highload_0224_skv.entity.UserEntity;
-import com.slow3586.highload_0224_skv.exception.IncorrectPasswordException;
 import com.slow3586.highload_0224_skv.exception.IncorrectLoginException;
+import com.slow3586.highload_0224_skv.exception.IncorrectPasswordException;
 import com.slow3586.highload_0224_skv.exception.UserNotFoundException;
 import com.slow3586.highload_0224_skv.repository.UserRepository;
 import io.jsonwebtoken.Jwts;
@@ -17,29 +17,26 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 @FieldDefaults(level = AccessLevel.PROTECTED, makeFinal = true)
 @RequiredArgsConstructor
 public class DefaultApiService implements DefaultApiDelegate {
-    static int strength = 10;
-    static SecureRandom secureRandom = new SecureRandom(new byte[]{1, 2, 3});
-    static BCryptPasswordEncoder bCryptPasswordEncoder = new BCryptPasswordEncoder(strength, secureRandom);
 
+    PasswordService passwordService;
     UserRepository userRepository;
 
     @Override
     public ResponseEntity<LoginPost200Response> loginPost(LoginPostRequest loginPostRequest) {
         final UserEntity userEntity = this.findUser(loginPostRequest.getId());
 
-        if (!bCryptPasswordEncoder.matches(
+        if (!passwordService.matches(
             loginPostRequest.getPassword(),
             userEntity.getPassword())
         ) {
@@ -66,7 +63,7 @@ public class DefaultApiService implements DefaultApiDelegate {
             .biography(request.getBiography())
             .birthdate(request.getBirthdate())
             .city(request.getCity())
-            .password(bCryptPasswordEncoder.encode(request.getPassword()))
+            .password(passwordService.encode(request.getPassword()))
             .build();
 
         final UserEntity save = userRepository.save(userEntity);
@@ -78,19 +75,23 @@ public class DefaultApiService implements DefaultApiDelegate {
 
     @Override
     public ResponseEntity<User> userGetIdGet(final String id) {
-        final UserEntity userEntity = this.findUser(id);
-
-        return ResponseEntity.ok(User.builder()
-            .id(userEntity.getId().toString())
-            .firstName(userEntity.getFirstName())
-            .secondName(userEntity.getSecondName())
-            .biography(userEntity.getBiography())
-            .birthdate(userEntity.getBirthdate())
-            .city(userEntity.getCity())
-            .build());
+        return ResponseEntity.ok(
+            this.userEntityToUser(
+                this.findUser(id)));
     }
 
-    private UserEntity findUser(final String uuidString) {
+    @Override
+    public ResponseEntity<List<User>> userSearchGet(String firstName, String lastName) {
+        return ResponseEntity.ok(
+            userRepository.searchAllByFirstNameContainingAndSecondNameContaining(
+                    firstName,
+                    lastName
+                ).stream()
+                .map(this::userEntityToUser)
+                .toList());
+    }
+
+    protected UserEntity findUser(final String uuidString) {
         UUID uuid;
 
         try {
@@ -101,5 +102,16 @@ public class DefaultApiService implements DefaultApiDelegate {
 
         return userRepository.findById(uuid)
             .orElseThrow(UserNotFoundException::new);
+    }
+
+    protected User userEntityToUser(UserEntity userEntity) {
+        return User.builder()
+            .id(String.valueOf(userEntity.getId()))
+            .firstName(userEntity.getFirstName())
+            .secondName(userEntity.getSecondName())
+            .biography(userEntity.getBiography())
+            .birthdate(userEntity.getBirthdate())
+            .city(userEntity.getCity())
+            .build();
     }
 }

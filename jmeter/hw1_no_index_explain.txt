@@ -1,0 +1,6 @@
+EXPLAIN SELECT id, first_name, second_name, birthdate, biography, city, password
+	FROM public.users
+	WHERE first_name like '%ико%' and second_name like '%ико%';
+
+"Seq Scan on users  (cost=0.00..3955.00 rows=54 width=164)"
+"  Filter: (((first_name)::text ~~ '%ико%'::text) AND ((second_name)::text ~~ '%ико%'::text))"

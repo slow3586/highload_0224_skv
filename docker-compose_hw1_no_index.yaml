@@ -1,3 +1,4 @@
+name: highload_0224_skv_hw1_no_index
 services:
   spring-app:
     build: .
@@ -8,6 +9,7 @@ services:
       - spring.datasource.url=jdbc:postgresql://db:5434/postgres
       - spring.datasource.username=postgres
       - spring.datasource.password=postgres
+      - app.debug.fillDbWithRandomData=true
     ports:
       - "8081:8080"
     healthcheck:
@@ -24,7 +26,7 @@ services:
       POSTGRES_PASSWORD: postgres
       PGPORT: 5434
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init_hw0.sql:/docker-entrypoint-initdb.d/init_hw0.sql
     ports:
       - "5434:5434"
     expose:
