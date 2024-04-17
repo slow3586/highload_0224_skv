@@ -1,12 +1,13 @@
 package com.slow3586.highload_0224_skv.debug;
 
 import com.github.javafaker.Faker;
-import com.slow3586.highload_0224_skv.repository.UserRepository;
+import com.slow3586.highload_0224_skv.repository.write.UserWriteRepository;
 import com.slow3586.highload_0224_skv.service.PasswordService;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,15 +22,25 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 class DbDebug {
-    final UserRepository userRepository;
+    final UserWriteRepository userWriteRepository;
     final PasswordService passwordService;
     final JdbcTemplate jdbcTemplate;
     @NonFinal
     @Value("${app.debug.fillDbWithRandomData:false}")
     boolean fillDbWithRandomData;
+
+    @Autowired
+    public DbDebug(
+        UserWriteRepository userWriteRepository,
+        PasswordService passwordService,
+        @Qualifier("userWriteJdbcTemplate") JdbcTemplate jdbcTemplate
+    ) {
+        this.userWriteRepository = userWriteRepository;
+        this.passwordService = passwordService;
+        this.jdbcTemplate = jdbcTemplate;
+    }
 
     @PostConstruct
     protected void postConstruct() {
@@ -41,7 +52,7 @@ class DbDebug {
     protected void fillDbWithRandomData() {
         log.info("#fillDbWithRandomData: started!");
         Faker faker = new Faker(new Locale("ru-RU"));
-        if (userRepository.count() > 0) {
+        if (userWriteRepository.count() > 0) {
             log.error("Database has data! Not doing #fillDbWithRandomData");
             return;
         }

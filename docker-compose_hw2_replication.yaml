@@ -1,0 +1,126 @@
+name: highload_0224_skv_hw2_replication
+services:
+  spring-app:
+    build: .
+    entrypoint: ["mvn", "spring-boot:run", "-Dmaven.test.skip=true"]
+    depends_on:
+      - db-primary
+      - db-secondary-1
+      - db-secondary-2
+    environment:
+      - spring.datasource.url=jdbc:postgresql://db-primary:5434/postgres
+      - spring.datasource.username=postgres
+      - spring.datasource.password=postgres
+      - spring.read-datasource.url=jdbc:postgresql://db-secondary-1:5435/postgres
+      - spring.read-datasource.username=postgres
+      - spring.read-datasource.password=postgres
+      - app.debug.fillDbWithRandomData=true
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: curl -sS http://127.0.0.1:8080 || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+  db-primary:
+    image: postgres:14-alpine
+    container_name: db-primary
+    user: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGPORT: 5434
+    volumes:
+      - ./pg_hba_hw2.conf:/opt/pg_hba.conf
+      - ./init_hw0.sql:/docker-entrypoint-initdb.d/0_init_hw0.sql
+      - ./index_hw1.sql:/docker-entrypoint-initdb.d/1_index_hw1.sql
+      - ./replicator_hw2.sql:/docker-entrypoint-initdb.d/2_replicator_hw2.sql
+    ports:
+      - "5434:5434"
+    expose:
+      - "5434"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    command: >
+      postgres 
+      -c ssl=off
+      -c wal_level=replica 
+      -c max_wal_senders=4
+      -c hot_standby=on
+      -c hba_file=/opt/pg_hba.conf
+      -c synchronous_commit=true
+
+  db-secondary-1:
+    image: postgres:14-alpine
+    container_name: db-secondary-1
+    user: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGPORT: 5435
+    volumes:
+      - ./init_hw0.sql:/docker-entrypoint-initdb.d/0_init_hw0.sql
+      - ./index_hw1.sql:/docker-entrypoint-initdb.d/1_index_hw1.sql
+    ports:
+      - "5435:5435"
+    expose:
+      - "5435"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U replicator -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - db-primary
+    command: |
+      bash -c "
+      until pg_basebackup --username=replicator -w --pgdata=/var/lib/postgresql/data -R --slot=replication_slot_1 --host=db-primary --port=5434
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres -c wal_level=hot_standby -c hot_standby=on 
+      "
+
+  db-secondary-2:
+    image: postgres:14-alpine
+    container_name: db-secondary-2
+    user: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGPORT: 5436
+    volumes:
+      - ./init_hw0.sql:/docker-entrypoint-initdb.d/0_init_hw0.sql
+      - ./index_hw1.sql:/docker-entrypoint-initdb.d/1_index_hw1.sql
+    ports:
+      - "5436:5436"
+    expose:
+      - "5436"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U replicator -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - db-primary
+    command: |
+      bash -c "
+      until pg_basebackup --username=replicator -w --pgdata=/var/lib/postgresql/data -R --slot=replication_slot_2 --host=db-primary --port=5434
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres -c wal_level=hot_standby -c hot_standby=on 
+      "

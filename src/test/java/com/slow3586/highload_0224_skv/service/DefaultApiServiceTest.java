@@ -6,7 +6,8 @@ import com.slow3586.highload_0224_skv.api.model.User;
 import com.slow3586.highload_0224_skv.api.model.UserRegisterPost200Response;
 import com.slow3586.highload_0224_skv.api.model.UserRegisterPostRequest;
 import com.slow3586.highload_0224_skv.entity.UserEntity;
-import com.slow3586.highload_0224_skv.repository.UserRepository;
+import com.slow3586.highload_0224_skv.repository.read.UserReadRepository;
+import com.slow3586.highload_0224_skv.repository.write.UserWriteRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,7 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class DefaultApiServiceTest extends Mockito {
     private static final UUID USER_ID = UUID.randomUUID();
     private static final String USER_PASSWORD = "USER_PASSWORD";
-    @Mock UserRepository userRepository;
+    @Mock UserReadRepository userReadRepository;
+    @Mock UserWriteRepository userWriteRepository;
     @Spy PasswordService passwordService = new PasswordService();
     @Spy @InjectMocks DefaultApiService defaultApiService;
 
@@ -38,7 +40,7 @@ class DefaultApiServiceTest extends Mockito {
             .id(USER_ID)
             .password(passwordService.encode(USER_PASSWORD))
             .build();
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(userEntity));
+        when(userReadRepository.findById(USER_ID)).thenReturn(Optional.of(userEntity));
 
         LoginPostRequest loginPostRequest = LoginPostRequest.builder()
             .id(USER_ID.toString())
@@ -62,7 +64,7 @@ class DefaultApiServiceTest extends Mockito {
             .password(USER_PASSWORD)
             .build();
 
-        when(userRepository.save(any())).then(a -> {
+        when(userWriteRepository.save(any())).then(a -> {
             UserEntity entity = ((UserEntity) a.getArguments()[0]);
             entity.setId(USER_ID);
             return entity;
@@ -79,7 +81,7 @@ class DefaultApiServiceTest extends Mockito {
         UserEntity userEntity = UserEntity.builder()
             .id(USER_ID)
             .build();
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(userEntity));
+        when(userReadRepository.findById(USER_ID)).thenReturn(Optional.of(userEntity));
 
         User result = defaultApiService.userGetIdGet(USER_ID.toString()).getBody();
 
@@ -92,10 +94,10 @@ class DefaultApiServiceTest extends Mockito {
         String FIRST = "FIRST";
         String SECOND = "SECOND";
         UserEntity userEntity = mock(UserEntity.class);
-        when(userRepository.searchAllByFirstNameContainingAndSecondNameContaining(FIRST, SECOND))
+        when(userReadRepository.searchAllByFirstNameContainingAndSecondNameContaining(FIRST, SECOND))
             .thenReturn(List.of(userEntity));
         defaultApiService.userSearchGet(FIRST, SECOND);
-        verify(userRepository).searchAllByFirstNameContainingAndSecondNameContaining(FIRST, SECOND);
+        verify(userReadRepository).searchAllByFirstNameContainingAndSecondNameContaining(FIRST, SECOND);
         verify(defaultApiService).userEntityToUser(userEntity);
     }
 }

@@ -10,7 +10,8 @@ import com.slow3586.highload_0224_skv.entity.UserEntity;
 import com.slow3586.highload_0224_skv.exception.IncorrectLoginException;
 import com.slow3586.highload_0224_skv.exception.IncorrectPasswordException;
 import com.slow3586.highload_0224_skv.exception.UserNotFoundException;
-import com.slow3586.highload_0224_skv.repository.UserRepository;
+import com.slow3586.highload_0224_skv.repository.read.UserReadRepository;
+import com.slow3586.highload_0224_skv.repository.write.UserWriteRepository;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.AccessLevel;
@@ -30,7 +31,8 @@ import java.util.UUID;
 public class DefaultApiService implements DefaultApiDelegate {
 
     PasswordService passwordService;
-    UserRepository userRepository;
+    UserReadRepository userReadRepository;
+    UserWriteRepository userWriteRepository;
 
     @Override
     public ResponseEntity<LoginPost200Response> loginPost(LoginPostRequest loginPostRequest) {
@@ -66,7 +68,7 @@ public class DefaultApiService implements DefaultApiDelegate {
             .password(passwordService.encode(request.getPassword()))
             .build();
 
-        final UserEntity save = userRepository.save(userEntity);
+        final UserEntity save = userWriteRepository.save(userEntity);
 
         return ResponseEntity.ok(UserRegisterPost200Response.builder()
             .userId(save.getId().toString())
@@ -83,7 +85,7 @@ public class DefaultApiService implements DefaultApiDelegate {
     @Override
     public ResponseEntity<List<User>> userSearchGet(String firstName, String lastName) {
         return ResponseEntity.ok(
-            userRepository.searchAllByFirstNameContainingAndSecondNameContaining(
+            userReadRepository.searchAllByFirstNameContainingAndSecondNameContaining(
                     firstName,
                     lastName
                 ).stream()
@@ -100,7 +102,7 @@ public class DefaultApiService implements DefaultApiDelegate {
             throw new IncorrectLoginException();
         }
 
-        return userRepository.findById(uuid)
+        return userReadRepository.findById(uuid)
             .orElseThrow(UserNotFoundException::new);
     }
 

@@ -4,6 +4,11 @@ spring:
     url: 'jdbc:postgresql://localhost:5432/postgres'
     username: postgres
     password: postgres
+  read-datasource:
+    driver-class-name: org.postgresql.Driver
+    url: 'jdbc:postgresql://localhost:5432/postgres'
+    username: postgres
+    password: postgres
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
