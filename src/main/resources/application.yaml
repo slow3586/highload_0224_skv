@@ -17,4 +17,6 @@ server:
     include-message: always
 app:
   debug:
-    fillDbWithRandomData: true
+    fillDbWithRandomData: false
+  jwtService:
+    key: "123451234512345123451234512345123451234512345123451234512345123451234512345"

@@ -20,33 +20,33 @@ import javax.sql.DataSource;
 @Configuration
 @EnableJdbcRepositories(
     basePackages = "com.slow3586.highload_0224_skv.repository.read",
-    transactionManagerRef = "userReadTransactionManager",
-    jdbcOperationsRef = "userReadJdbcOperations"
+    transactionManagerRef = "readTransactionManager",
+    jdbcOperationsRef = "readJdbcOperations"
 )
 @EnableAutoConfiguration(exclude = {
     DataSourceAutoConfiguration.class,
     JdbcRepositoriesAutoConfiguration.class
 })
-public class UserReadRepositoryConfig {
+public class ReadRepositoryConfig {
     @Bean
     @ConfigurationProperties("spring.read-datasource")
-    public DataSourceProperties userReadDataSourceProperties() {
+    public DataSourceProperties readDataSourceProperties() {
         return new DataSourceProperties();
     }
 
     @Bean
-    public HikariDataSource userReadDataSource(@Qualifier("userReadDataSourceProperties") DataSourceProperties properties) {
+    public HikariDataSource readDataSource(@Qualifier("readDataSourceProperties") DataSourceProperties properties) {
         return properties.initializeDataSourceBuilder().type(HikariDataSource.class)
             .build();
     }
 
-    @Bean(name = "userReadTransactionManager")
-    PlatformTransactionManager userReadTransactionManager(@Qualifier("userReadDataSource") DataSource employeesDataSource) {
-        return new JdbcTransactionManager(employeesDataSource);
+    @Bean(name = "readTransactionManager")
+    PlatformTransactionManager readTransactionManager(@Qualifier("readDataSource") DataSource dataSource) {
+        return new JdbcTransactionManager(dataSource);
     }
 
     @Bean
-    NamedParameterJdbcOperations userReadJdbcOperations(@Qualifier("userReadDataSource") DataSource dataSource) {
+    NamedParameterJdbcOperations readJdbcOperations(@Qualifier("readDataSource") DataSource dataSource) {
         return new NamedParameterJdbcTemplate(dataSource);
     }
 

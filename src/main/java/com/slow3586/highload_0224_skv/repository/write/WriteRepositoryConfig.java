@@ -34,41 +34,41 @@ import java.util.Optional;
 @Configuration
 @EnableJdbcRepositories(
     basePackages = "com.slow3586.highload_0224_skv.repository.write",
-    transactionManagerRef = "userWriteTransactionManager",
-    jdbcOperationsRef = "userWriteJdbcOperations"
+    transactionManagerRef = "writeTransactionManager",
+    jdbcOperationsRef = "writeJdbcOperations"
 )
 @EnableAutoConfiguration(exclude = {
     DataSourceAutoConfiguration.class,
     JdbcRepositoriesAutoConfiguration.class
 })
-public class UserWriteRepositoryConfig {
+public class WriteRepositoryConfig {
     @Bean
     @ConfigurationProperties("spring.datasource")
-    public DataSourceProperties userWriteDataSourceProperties() {
+    public DataSourceProperties writeDataSourceProperties() {
         return new DataSourceProperties();
     }
 
     @Bean
-    public HikariDataSource userWriteDataSource(@Qualifier("userWriteDataSourceProperties") DataSourceProperties properties) {
+    public HikariDataSource writeDataSource(@Qualifier("writeDataSourceProperties") DataSourceProperties properties) {
         return properties.initializeDataSourceBuilder().type(HikariDataSource.class)
             .build();
     }
 
-    @Bean(name = "userWriteTransactionManager")
-    PlatformTransactionManager userWriteTransactionManager(@Qualifier("userWriteDataSource") DataSource employeesDataSource) {
-        return new JdbcTransactionManager(employeesDataSource);
+    @Bean(name = "writeTransactionManager")
+    PlatformTransactionManager writeTransactionManager(@Qualifier("writeDataSource") DataSource dataSource) {
+        return new JdbcTransactionManager(dataSource);
     }
 
     @Bean
-    NamedParameterJdbcOperations userWriteJdbcOperations(@Qualifier("userWriteDataSource") DataSource dataSource) {
+    NamedParameterJdbcOperations writeJdbcOperations(@Qualifier("writeDataSource") DataSource dataSource) {
         return new NamedParameterJdbcTemplate(dataSource);
     }
 
     @Primary
     @Autowired
-    @Bean(name = "userWriteJdbcTemplate")
-    public JdbcTemplate userWriteJdbcTemplate(@Qualifier("userWriteDataSource") DataSource userWriteDataSource) {
-        return new JdbcTemplate(userWriteDataSource);
+    @Bean(name = "writeJdbcTemplate")
+    public JdbcTemplate writeJdbcTemplate(@Qualifier("writeDataSource") DataSource writeDataSource) {
+        return new JdbcTemplate(writeDataSource);
     }
 
     @Bean
@@ -90,7 +90,7 @@ public class UserWriteRepositoryConfig {
 
     @Bean
     JdbcConverter jdbcConverter(JdbcMappingContext mappingContext,
-                                @Qualifier("userWriteJdbcOperations") NamedParameterJdbcOperations jdbcOperationsDataBase1,
+                                @Qualifier("writeJdbcOperations") NamedParameterJdbcOperations jdbcOperationsDataBase1,
                                 @Lazy RelationResolver relationResolver,
                                 @Qualifier("customConversions") JdbcCustomConversions conversions,
                                 Dialect dialect) {

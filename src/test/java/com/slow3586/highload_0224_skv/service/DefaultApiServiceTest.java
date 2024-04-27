@@ -6,8 +6,12 @@ import com.slow3586.highload_0224_skv.api.model.User;
 import com.slow3586.highload_0224_skv.api.model.UserRegisterPost200Response;
 import com.slow3586.highload_0224_skv.api.model.UserRegisterPostRequest;
 import com.slow3586.highload_0224_skv.entity.UserEntity;
+import com.slow3586.highload_0224_skv.mapper.PostMapper;
+import com.slow3586.highload_0224_skv.mapper.UserMapper;
 import com.slow3586.highload_0224_skv.repository.read.UserReadRepository;
 import com.slow3586.highload_0224_skv.repository.write.UserWriteRepository;
+import com.slow3586.highload_0224_skv.security.JwtService;
+import com.slow3586.highload_0224_skv.security.SecurityConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -15,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.AuthenticationManager;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -31,6 +36,13 @@ class DefaultApiServiceTest extends Mockito {
     private static final String USER_PASSWORD = "USER_PASSWORD";
     @Mock UserReadRepository userReadRepository;
     @Mock UserWriteRepository userWriteRepository;
+    @Mock PostService postService;
+    @Mock FriendService friendService;
+    @Mock AuthenticationManager authenticationManager;
+    @Mock SecurityConfiguration securityConfiguration;
+    @Mock PostMapper postMapper;
+    @Mock UserMapper userMapper;
+    @Mock JwtService jwtService;
     @Spy PasswordService passwordService = new PasswordService();
     @Spy @InjectMocks DefaultApiService defaultApiService;
 
@@ -98,6 +110,5 @@ class DefaultApiServiceTest extends Mockito {
             .thenReturn(List.of(userEntity));
         defaultApiService.userSearchGet(FIRST, SECOND);
         verify(userReadRepository).searchAllByFirstNameContainingAndSecondNameContaining(FIRST, SECOND);
-        verify(defaultApiService).userEntityToUser(userEntity);
     }
 }

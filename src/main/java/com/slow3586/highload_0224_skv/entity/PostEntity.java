@@ -7,21 +7,17 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
-import java.time.LocalDate;
+import java.util.Date;
 import java.util.UUID;
 
 @Data
 @Builder
-@Table("users")
+@Table("posts")
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserEntity {
-    @Id
-    UUID id;
-    String firstName;
-    String secondName;
-    LocalDate birthdate;
-    String biography;
-    String city;
-    String password;
+public class PostEntity {
+    @Id UUID id;
+    UUID authorUserId;
+    Date dateCreated;
+    String text;
 }

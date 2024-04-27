@@ -3,6 +3,8 @@ package com.slow3586.highload_0224_skv.service;
 import com.slow3586.highload_0224_skv.api.DefaultApiDelegate;
 import com.slow3586.highload_0224_skv.api.model.LoginPost200Response;
 import com.slow3586.highload_0224_skv.api.model.LoginPostRequest;
+import com.slow3586.highload_0224_skv.api.model.Post;
+import com.slow3586.highload_0224_skv.api.model.PostCreatePostRequest;
 import com.slow3586.highload_0224_skv.api.model.User;
 import com.slow3586.highload_0224_skv.api.model.UserRegisterPost200Response;
 import com.slow3586.highload_0224_skv.api.model.UserRegisterPostRequest;
@@ -10,51 +12,62 @@ import com.slow3586.highload_0224_skv.entity.UserEntity;
 import com.slow3586.highload_0224_skv.exception.IncorrectLoginException;
 import com.slow3586.highload_0224_skv.exception.IncorrectPasswordException;
 import com.slow3586.highload_0224_skv.exception.UserNotFoundException;
+import com.slow3586.highload_0224_skv.mapper.PostMapper;
+import com.slow3586.highload_0224_skv.mapper.UserMapper;
 import com.slow3586.highload_0224_skv.repository.read.UserReadRepository;
 import com.slow3586.highload_0224_skv.repository.write.UserWriteRepository;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import com.slow3586.highload_0224_skv.security.JwtService;
+import com.slow3586.highload_0224_skv.security.SecurityConfiguration;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.NativeWebRequest;
+import org.springframework.web.context.request.WebRequest;
 
-import java.time.Duration;
-import java.util.Date;
+import java.math.BigDecimal;
+import java.security.Principal;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @FieldDefaults(level = AccessLevel.PROTECTED, makeFinal = true)
 @RequiredArgsConstructor
 public class DefaultApiService implements DefaultApiDelegate {
-
     PasswordService passwordService;
     UserReadRepository userReadRepository;
     UserWriteRepository userWriteRepository;
+    PostService postService;
+    FriendService friendService;
+    AuthenticationManager authenticationManager;
+    SecurityConfiguration securityConfiguration;
+    PostMapper postMapper;
+    UserMapper userMapper;
+    JwtService jwtService;
+    NativeWebRequest nativeWebRequest;
 
     @Override
     public ResponseEntity<LoginPost200Response> loginPost(LoginPostRequest loginPostRequest) {
-        final UserEntity userEntity = this.findUser(loginPostRequest.getId());
+        Authentication authenticate = authenticationManager.authenticate(
+            new UsernamePasswordAuthenticationToken(
+                loginPostRequest.getId(),
+                loginPostRequest.getPassword()));
 
-        if (!passwordService.matches(
-            loginPostRequest.getPassword(),
-            userEntity.getPassword())
-        ) {
+        if (authenticate.isAuthenticated()) {
+            var user = securityConfiguration.loadUserByUsername(loginPostRequest.getId());
+
+            return ResponseEntity.ok(
+                LoginPost200Response.builder()
+                    .token(jwtService.generateToken(user))
+                    .build());
+        } else {
             throw new IncorrectPasswordException();
         }
-
-        return ResponseEntity.ok(
-            LoginPost200Response.builder()
-                .token((Jwts.builder()
-                    .setSubject(userEntity.getId().toString())
-                    .setIssuer("ISSUER")
-                    .setIssuedAt(new Date())
-                    .setExpiration(new Date(System.currentTimeMillis() + Duration.ofDays(1).toMillis()))
-                    .signWith(SignatureAlgorithm.HS512, "SECRET_KEY")
-                    .compact()))
-                .build());
     }
 
     @Override
@@ -78,7 +91,7 @@ public class DefaultApiService implements DefaultApiDelegate {
     @Override
     public ResponseEntity<User> userGetIdGet(final String id) {
         return ResponseEntity.ok(
-            this.userEntityToUser(
+            userMapper.userEntityToUser(
                 this.findUser(id)));
     }
 
@@ -89,7 +102,7 @@ public class DefaultApiService implements DefaultApiDelegate {
                     firstName,
                     lastName
                 ).stream()
-                .map(this::userEntityToUser)
+                .map(userMapper::userEntityToUser)
                 .toList());
     }
 
@@ -106,14 +119,43 @@ public class DefaultApiService implements DefaultApiDelegate {
             .orElseThrow(UserNotFoundException::new);
     }
 
-    protected User userEntityToUser(UserEntity userEntity) {
-        return User.builder()
-            .id(String.valueOf(userEntity.getId()))
-            .firstName(userEntity.getFirstName())
-            .secondName(userEntity.getSecondName())
-            .biography(userEntity.getBiography())
-            .birthdate(userEntity.getBirthdate())
-            .city(userEntity.getCity())
-            .build();
+    @Override
+    public Optional<NativeWebRequest> getRequest() {
+        return Optional.of(nativeWebRequest);
+    }
+
+    @Override
+    public ResponseEntity<Void> friendSetUserIdPut(String userId) {
+        friendService.createFriendship(getCurrentUserId(), UUID.fromString(userId));
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    public ResponseEntity<List<Post>> postFeedGet(BigDecimal offset, BigDecimal limit) {
+        if (offset == null || limit == null) throw new IllegalArgumentException("offset == null || limit == null");
+        if (limit.intValue() <= 0 || limit.intValue() > 1000) throw new IllegalArgumentException("limit <=0 || limit > 1000");
+        if (offset.intValue() < 0) throw new IllegalArgumentException("offset < 0");
+        return ResponseEntity.ok(
+            postService.findPostsByFriends(
+                this.getCurrentUserId(),
+                offset.intValue(),
+                limit.intValue()));
+    }
+
+    @Override
+    public ResponseEntity<String> postCreatePost(PostCreatePostRequest request) {
+        return ResponseEntity.ok(
+            postService.createPost(
+                    getCurrentUserId(),
+                    request.getText())
+                .toString());
+    }
+
+    protected UUID getCurrentUserId() {
+        return this.getRequest()
+            .map(WebRequest::getUserPrincipal)
+            .map(Principal::getName)
+            .map(UUID::fromString)
+            .orElseThrow();
     }
 }
