@@ -1,18 +1,24 @@
 spring:
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: 'jdbc:postgresql://localhost:5432/postgres'
+    url: 'jdbc:postgresql://localhost:5434/postgres'
     username: postgres
     password: postgres
   read-datasource:
     driver-class-name: org.postgresql.Driver
-    url: 'jdbc:postgresql://localhost:5432/postgres'
+    url: 'jdbc:postgresql://localhost:5434/postgres'
     username: postgres
     password: postgres
   autoconfigure:
     exclude:
       - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+  rabbitmq:
+    host: localhost
+    username: admin
+    password: admin
+    port: 5672
 server:
+  port: 8081
   error:
     include-message: always
 app:
@@ -20,3 +26,12 @@ app:
     fillDbWithRandomData: false
   jwtService:
     key: "123451234512345123451234512345123451234512345123451234512345123451234512345"
+management:
+  endpoints:
+    enabled-by-default: false
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      enabled: true

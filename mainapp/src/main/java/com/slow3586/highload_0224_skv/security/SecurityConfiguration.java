@@ -22,6 +22,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 
+import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -55,7 +56,7 @@ public class SecurityConfiguration {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(4, new SecureRandom(new byte[]{1, 2, 3}));
     }
 
     @Bean

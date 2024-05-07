@@ -1,0 +1,102 @@
+name: highload_0224_skv_hw4_rabbit_websocket
+services:
+  spring-app:
+    build: ./mainapp
+    entrypoint: ["mvn", "spring-boot:run", "-Dmaven.test.skip=true"]
+    depends_on:
+      - db
+      - rabbitmq
+    environment:
+      - spring.datasource.url=jdbc:postgresql://db:5434/postgres
+      - spring.datasource.username=postgres
+      - spring.datasource.password=postgres
+      - spring.read-datasource.url=jdbc:postgresql://db:5434/postgres
+      - spring.read-datasource.username=postgres
+      - spring.read-datasource.password=postgres
+      - app.debug.fillDbWithRandomData=true
+      - app.debug.fillDbWithRandomDataThreads=100
+      - server.port=8081
+      - spring.rabbitmq.host=rabbitmq
+      - spring.rabbitmq.username=admin
+      - spring.rabbitmq.password=admin
+      - spring.rabbitmq.port=5672
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: "curl --fail --silent 127.0.0.1:8081/actuator/health | grep UP || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+
+  websocketserver-app:
+    build: ./websocketserver
+    entrypoint: [ "mvn", "spring-boot:run", "-Dmaven.test.skip=true" ]
+    depends_on:
+      - db
+      - rabbitmq
+      - spring-app
+    environment:
+      - spring.rabbitmq.host=rabbitmq
+      - spring.rabbitmq.username=admin
+      - spring.rabbitmq.password=admin
+      - spring.rabbitmq.port=5672
+      - server.port=8082
+      - main-app-url=http://spring-app:8081
+    healthcheck:
+      test: "curl --fail --silent 127.0.0.1:8082/actuator/health | grep UP || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    ports:
+      - "8082:8082"
+
+  rabbitmq:
+    build:
+      dockerfile: ./rabbit.Dockerfile
+    ports:
+      - 5672:5672
+      - 15672:15672
+      - 61613:61613
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+  db:
+    image: postgres:14-alpine
+    user: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGPORT: 5434
+    volumes:
+      - ./init_hw0.sql:/docker-entrypoint-initdb.d/0_init_hw0.sql
+      - ./index_hw1.sql:/docker-entrypoint-initdb.d/1_index_hw1.sql
+      - ./posts_hw3.sql:/docker-entrypoint-initdb.d/3_posts_hw3.sql
+    ports:
+      - "5434:5434"
+    expose:
+      - "5434"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    command: >
+      postgres 
+      -c ssl=off
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"

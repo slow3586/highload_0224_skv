@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
@@ -69,7 +68,9 @@ class DbDebug {
         IntStream.range(0, THREADS).parallel()
             .forEach(i -> {
                 final int thread = count.getAndIncrement();
-                log.info("#fillDbWithRandomData: users table: thread {}/{} started", thread, THREADS);
+                if (thread % 100 == 0) {
+                    log.info("#fillDbWithRandomData: users table: thread {}/{} started", thread, THREADS);
+                }
                 jdbcTemplate.batchUpdate("INSERT INTO users(" +
                         "first_name, second_name, birthdate, biography, city, password)" +
                         " VALUES (?, ?, ?, ?, ?, ?);",
@@ -92,7 +93,7 @@ class DbDebug {
                 );
             });
         log.info("#fillDbWithRandomData: quering userIds");
-        List<UUID> userIds = jdbcTemplate.queryForList("SELECT id FROM users LIMIT " + (THREADS * 100))
+        final List<UUID> userIds = jdbcTemplate.queryForList("SELECT id FROM users LIMIT " + (THREADS * 100))
             .stream()
             .flatMap(m -> m.values().stream())
             .map(o -> (UUID) o)
@@ -100,7 +101,9 @@ class DbDebug {
         count.set(0);
         userIds.parallelStream().forEach(userId -> {
             final int thread = count.getAndIncrement();
-            log.info("#fillDbWithRandomData: friendships table: thread {}/{} started", thread, userIds.size());
+            if (thread % 100 == 0) {
+                log.info("#fillDbWithRandomData: friendships table: thread {}/{} started", thread, userIds.size());
+            }
             jdbcTemplate.batchUpdate("INSERT INTO friendships(" +
                     "user_id, friend_id)" +
                     " VALUES (?, ?);",
@@ -126,7 +129,9 @@ class DbDebug {
         jdbcTemplate.execute("ALTER TABLE posts DISABLE TRIGGER posts_insert_trig");
         userIds.parallelStream().forEach(userId -> {
             final int thread = count.getAndIncrement();
-            log.info("#fillDbWithRandomData: posts table: thread {}/{} started", thread, userIds.size());
+            if (thread % 100 == 0) {
+                log.info("#fillDbWithRandomData: posts table: thread {}/{} started", thread, userIds.size());
+            }
             jdbcTemplate.batchUpdate("INSERT INTO posts(" +
                     "author_user_id, date_created, text)" +
                     " VALUES (?, ?, ?);",

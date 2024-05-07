@@ -7,6 +7,7 @@ import com.slow3586.highload_0224_skv.repository.read.FriendshipReadRepository;
 import com.slow3586.highload_0224_skv.repository.read.PostReadRepository;
 import com.slow3586.highload_0224_skv.repository.write.FriendshipWriteRepository;
 import com.slow3586.highload_0224_skv.repository.write.PostWriteRepository;
+import com.slow3586.highload_0224_skv.service.websocketserver.WebSocketServerService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -34,6 +35,7 @@ public class PostService {
     PostMapper postMapper;
     JdbcTemplate jdbcTemplate;
     CacheManager cacheManager;
+    WebSocketServerService webSocketServerService;
 
     @Cacheable(value = "postsByFriends", key = "#userId", condition = "#offset == 0 && #limit == 10")
     public List<Post> findPostsByFriends(UUID userId, int offset, int limit) {
@@ -62,7 +64,11 @@ public class PostService {
         entity.setAuthorUserId(userId);
         entity.setText(text);
         entity.setDateCreated(new Date());
-        return postWriteRepository.save(entity).getId();
+        final UUID id = postWriteRepository.save(entity).getId();
+
+        webSocketServerService.sendPost(id, userId, text);
+
+        return id;
     }
 
     @Scheduled(initialDelay = 1000, fixedDelay = 1000)
@@ -72,7 +78,7 @@ public class PostService {
             Arrays.stream(connection
                 .unwrap(PGConnection.class)
                 .getNotifications(999)
-            ).forEach(nt -> friendshipReadRepository
+            ).forEach(nt -> friendshipWriteRepository
                 .findAllByFriendId(UUID.fromString(nt.getParameter()))
                 .forEach(friendship -> cacheManager.getCache("postsByFriends").evictIfPresent(friendship.getUserId())));
             return null;

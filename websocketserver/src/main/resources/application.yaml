@@ -1,0 +1,20 @@
+main-app-url: http://localhost:8081
+server:
+  port: 8082
+spring:
+  application:
+    name: websocketserver
+  rabbitmq:
+    host: localhost
+    password: admin
+    port: 5672
+    username: admin
+management:
+  endpoints:
+    enabled-by-default: false
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      enabled: true
