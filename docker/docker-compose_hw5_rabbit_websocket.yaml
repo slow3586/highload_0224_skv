@@ -1,7 +1,7 @@
-name: highload_0224_skv_hw4_rabbit_websocket
+name: highload_0224_skv_hw5_rabbit_websocket
 services:
   spring-app:
-    build: ./mainapp
+    build: ../mainapp
     entrypoint: ["mvn", "spring-boot:run", "-Dmaven.test.skip=true"]
     depends_on:
       - db
@@ -34,7 +34,7 @@ services:
           cpus: "4.0"
 
   websocketserver-app:
-    build: ./websocketserver
+    build: ../websocketserver
     entrypoint: [ "mvn", "spring-boot:run", "-Dmaven.test.skip=true" ]
     depends_on:
       - db
@@ -58,7 +58,7 @@ services:
 
   rabbitmq:
     build:
-      dockerfile: ./rabbit.Dockerfile
+      dockerfile: ../websocketserver/rabbit.Dockerfile
     ports:
       - 5672:5672
       - 15672:15672
@@ -81,9 +81,9 @@ services:
       POSTGRES_PASSWORD: postgres
       PGPORT: 5434
     volumes:
-      - ./init_hw0.sql:/docker-entrypoint-initdb.d/0_init_hw0.sql
-      - ./index_hw1.sql:/docker-entrypoint-initdb.d/1_index_hw1.sql
-      - ./posts_hw3.sql:/docker-entrypoint-initdb.d/3_posts_hw3.sql
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/0_init_hw1.sql
+      - ../sql/index_hw2.sql:/docker-entrypoint-initdb.d/1_index_hw2.sql
+      - ../sql/posts_hw4.sql:/docker-entrypoint-initdb.d/3_posts_hw4.sql
     ports:
       - "5434:5434"
     expose:

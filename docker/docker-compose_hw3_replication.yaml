@@ -1,7 +1,7 @@
-name: highload_0224_skv_hw2_replication
+name: highload_0224_skv_hw3_replication
 services:
   spring-app:
-    build: ./mainapp
+    build: ../mainapp
     entrypoint: ["mvn", "spring-boot:run", "-Dmaven.test.skip=true"]
     depends_on:
       - db-primary
@@ -33,10 +33,10 @@ services:
       POSTGRES_PASSWORD: postgres
       PGPORT: 5434
     volumes:
-      - ./pg_hba_hw2.conf:/opt/pg_hba.conf
-      - ./init_hw0.sql:/docker-entrypoint-initdb.d/0_init_hw0.sql
-      - ./index_hw1.sql:/docker-entrypoint-initdb.d/1_index_hw1.sql
-      - ./replicator_hw2.sql:/docker-entrypoint-initdb.d/2_replicator_hw2.sql
+      - ../sql/pg_hba_hw3.conf:/opt/pg_hba.conf
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/0_init_hw1.sql
+      - ../sql/index_hw2.sql:/docker-entrypoint-initdb.d/1_index_hw2.sql
+      - ../sql/replicator_hw3.sql:/docker-entrypoint-initdb.d/2_replicator_hw3.sql
     ports:
       - "5434:5434"
     expose:
@@ -65,8 +65,8 @@ services:
       POSTGRES_PASSWORD: postgres
       PGPORT: 5435
     volumes:
-      - ./init_hw0.sql:/docker-entrypoint-initdb.d/0_init_hw0.sql
-      - ./index_hw1.sql:/docker-entrypoint-initdb.d/1_index_hw1.sql
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/0_init_hw1.sql
+      - ../sql/index_hw2.sql:/docker-entrypoint-initdb.d/1_index_hw2.sql
     ports:
       - "5435:5435"
     expose:
@@ -100,8 +100,8 @@ services:
       POSTGRES_PASSWORD: postgres
       PGPORT: 5436
     volumes:
-      - ./init_hw0.sql:/docker-entrypoint-initdb.d/0_init_hw0.sql
-      - ./index_hw1.sql:/docker-entrypoint-initdb.d/1_index_hw1.sql
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/0_init_hw1.sql
+      - ../sql/index_hw2.sql:/docker-entrypoint-initdb.d/1_index_hw2.sql
     ports:
       - "5436:5436"
     expose:

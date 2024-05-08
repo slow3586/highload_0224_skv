@@ -1,15 +1,14 @@
-name: highload_0224_skv_hw1_no_index
+name: highload_0224_skv_hw1
 services:
   spring-app:
-    build: ./mainapp
-    entrypoint: ["mvn", "spring-boot:run", "-Dmaven.test.skip=true"]
+    build: ../mainapp
+    entrypoint: ["mvn", "spring-boot:run", "-Dmaven.test.skip=true", "-Daether.dependencyCollector.impl=bf"]
     depends_on:
       - db
     environment:
       - spring.datasource.url=jdbc:postgresql://db:5434/postgres
       - spring.datasource.username=postgres
       - spring.datasource.password=postgres
-      - app.debug.fillDbWithRandomData=true
     ports:
       - "8081:8080"
     healthcheck:
@@ -26,7 +25,7 @@ services:
       POSTGRES_PASSWORD: postgres
       PGPORT: 5434
     volumes:
-      - ./init_hw0.sql:/docker-entrypoint-initdb.d/init_hw0.sql
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/init_hw1.sql
     ports:
       - "5434:5434"
     expose:

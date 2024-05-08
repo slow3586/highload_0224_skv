@@ -1,7 +1,7 @@
-name: highload_0224_skv_hw3_posts
+name: highload_0224_skv_hw2_with_index
 services:
   spring-app:
-    build: ./mainapp
+    build: ../mainapp
     entrypoint: ["mvn", "spring-boot:run", "-Dmaven.test.skip=true"]
     depends_on:
       - db
@@ -9,11 +9,7 @@ services:
       - spring.datasource.url=jdbc:postgresql://db:5434/postgres
       - spring.datasource.username=postgres
       - spring.datasource.password=postgres
-      - spring.read-datasource.url=jdbc:postgresql://db:5434/postgres
-      - spring.read-datasource.username=postgres
-      - spring.read-datasource.password=postgres
       - app.debug.fillDbWithRandomData=true
-      - app.debug.fillDbWithRandomDataThreads=200
     ports:
       - "8081:8080"
     healthcheck:
@@ -21,24 +17,17 @@ services:
       interval: 5s
       timeout: 5s
       retries: 3
-    deploy:
-      resources:
-        limits:
-          cpus: "4.0"
-
   db:
-    image: postgres:14-alpine
+    image: postgres
     container_name: db
-    user: postgres
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       PGPORT: 5434
     volumes:
-      - ./init_hw0.sql:/docker-entrypoint-initdb.d/0_init_hw0.sql
-      - ./index_hw1.sql:/docker-entrypoint-initdb.d/1_index_hw1.sql
-      - ./posts_hw3.sql:/docker-entrypoint-initdb.d/3_posts_hw3.sql
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/0_init_hw1.sql
+      - ../sql/index_hw2.sql:/docker-entrypoint-initdb.d/1_index_hw2.sql
     ports:
       - "5434:5434"
     expose:
@@ -48,10 +37,3 @@ services:
       interval: 5s
       timeout: 5s
       retries: 3
-    command: >
-      postgres 
-      -c ssl=off
-    deploy:
-      resources:
-        limits:
-          cpus: "4.0"
