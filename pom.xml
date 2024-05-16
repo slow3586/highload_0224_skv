@@ -14,8 +14,10 @@
     <name>highload_0224_skv</name>
     <description>highload_0224_skv</description>
     <modules>
+        <module>commonapi</module>
         <module>mainapp</module>
         <module>websocketserver</module>
+        <module>dialogserver</module>
     </modules>
     <properties>
         <java.version>17</java.version>

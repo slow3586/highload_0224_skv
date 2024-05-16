@@ -1,4 +1,6 @@
 spring:
+  main:
+    web-application-type: reactive
   datasource:
     driver-class-name: org.postgresql.Driver
     url: 'jdbc:postgresql://localhost:5434/postgres'
@@ -23,7 +25,8 @@ server:
     include-message: always
 app:
   debug:
-    fillDbWithRandomData: false
+    fillDbWithRandomData: true
+    fillDialogDb: true
   jwtService:
     key: "123451234512345123451234512345123451234512345123451234512345123451234512345"
 management:
