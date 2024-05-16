@@ -3,7 +3,6 @@ package com.slow3586.highload_0224_skv.dialogserver;
 import com.slow3586.highload_0224_skv.commonapi.DialogPostEntity;
 import com.slow3586.highload_0224_skv.commonapi.SendDialogPostDto;
 import lombok.AccessLevel;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,7 +13,6 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController

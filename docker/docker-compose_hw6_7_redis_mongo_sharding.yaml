@@ -1,0 +1,248 @@
+name: highload_0224_skv_hw6_7_redis_mongo_sharding
+services:
+  main-app:
+    build: ..
+    entrypoint: [
+      "mvn",
+      "-f", "./mainapp/pom.xml",
+      "spring-boot:run",
+      "-Dmaven.test.skip=true",
+      "-Dspring-boot.run.jvmArguments=\"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005\""
+    ]
+    depends_on:
+      - dialogserver-app
+      - websocketserver-app
+      - postgres
+      - rabbitmq
+    environment:
+      - spring.datasource.url=jdbc:postgresql://postgres:5434/postgres
+      - spring.datasource.username=postgres
+      - spring.datasource.password=postgres
+      - spring.read-datasource.url=jdbc:postgresql://postgres:5434/postgres
+      - spring.read-datasource.username=postgres
+      - spring.read-datasource.password=postgres
+      - app.debug.fillDbWithRandomData=true
+      - app.debug.fillDbWithRandomDataThreads=10
+      - server.port=8081
+      - spring.rabbitmq.host=rabbitmq
+      - spring.rabbitmq.username=admin
+      - spring.rabbitmq.password=admin
+      - spring.rabbitmq.port=5672
+      - dialog-app-url=http://dialogserver-app:8083
+    ports:
+      - "8081:8081"
+      - "5005:5005"
+    healthcheck:
+      test: "curl --fail --silent 127.0.0.1:8081/actuator/health | grep UP || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+
+  websocketserver-app:
+    build: ..
+    entrypoint: [
+      "mvn",
+      "-f", "./websocketserver/pom.xml",
+      "spring-boot:run",
+      "-Dmaven.test.skip=true",
+      "-Dspring-boot.run.jvmArguments=\"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5006\""
+    ]
+    depends_on:
+      - rabbitmq
+    environment:
+      - spring.rabbitmq.host=rabbitmq
+      - spring.rabbitmq.username=admin
+      - spring.rabbitmq.password=admin
+      - spring.rabbitmq.port=5672
+      - server.port=8082
+      - main-app-url=http://main-app:8081
+    healthcheck:
+      test: "curl --fail --silent 127.0.0.1:8082/actuator/health | grep UP || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    ports:
+      - "8082:8082"
+      - "5006:5006"
+
+  dialogserver-app:
+    build: ..
+    entrypoint: [
+      "mvn",
+      "-f", "./dialogserver/pom.xml",
+      "spring-boot:run",
+      "-Dmaven.test.skip=true",
+      "-Dspring-boot.run.jvmArguments=\"-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5007\""
+    ]
+    depends_on:
+      - postgres
+      - redis
+      - mongodb-router
+    environment:
+      - spring.cache.type=redis
+      - spring.data.redis.host=redis
+      - spring.data.redis.port=6379
+      - spring.data.redis.password=redis
+      - spring.data.mongodb.host=mongodb-router
+      - spring.data.mongodb.port=27017
+      - server.port=8083
+      - enable-cache=true
+    healthcheck:
+      test: "curl --fail --silent 127.0.0.1:8083/actuator/health | grep UP || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    ports:
+      - "8083:8083"
+      - "5007:5007"
+
+  rabbitmq:
+    build:
+      dockerfile: ../websocketserver/rabbit.Dockerfile
+    ports:
+      - 5672:5672
+      - 15672:15672
+    expose:
+      - 61613
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:14-alpine
+    user: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGPORT: 5434
+    volumes:
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/0_init_hw1.sql
+      - ../sql/index_hw2.sql:/docker-entrypoint-initdb.d/1_index_hw2.sql
+      - ../sql/posts_hw4.sql:/docker-entrypoint-initdb.d/3_posts_hw4.sql
+    ports:
+      - "5434:5434"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    command: >
+      postgres 
+      -c ssl=off
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+
+  redis:
+    image: redis:6.2.14-alpine3.19
+    restart: always
+    ports:
+      - 6379:6379
+    environment:
+      - REDIS_PASSWORD=redis
+      - REDIS_PORT=6379
+      - REDIS_DATABASES=16
+
+  mongodb-init:
+    image: mongo:7.0.8
+    entrypoint: [ "/bin/sh", "-c" ]
+    restart: no
+    command: |
+      "
+      set -x
+      
+      sleep 2;
+      
+      mongosh --host mongodb-config:27017 --eval '
+        rs.initiate({
+            _id: \"mongodb-config-rs\",
+            configsvr: true,
+            version: 1,
+            members: [{ _id: 0, host: \"mongodb-config:27017\" }]
+        })
+      '
+      
+      sleep 3;
+      
+      mongosh --host mongodb-shard-0:27017 --eval '
+        rs.initiate({
+          _id: \"mongodb-shard-0-rs\",
+          version: 1,
+          members: [{ _id: 0, host: \"mongodb-shard-0:27017\" },]
+        })
+      '
+      mongosh --host mongodb-shard-1:27017 --eval '
+        rs.initiate({
+          _id: \"mongodb-shard-1-rs\",
+          version: 1,
+          members: [{ _id: 0, host: \"mongodb-shard-1:27017\" },]
+        })
+      '
+      
+      sleep 5;
+      
+      mongosh --host mongodb-router:27017 --eval '
+        sh.addShard(\"mongodb-shard-0-rs/mongodb-shard-0:27017\");
+        sh.addShard(\"mongodb-shard-1-rs/mongodb-shard-1:27017\");
+      '
+      
+      sleep 5;
+      
+      mongosh --host mongodb-router:27017 --eval '
+        db.dialogPostEntity.createIndex({ \"dialogId\": \"hashed\"}, {\"background\":true});
+        sh.shardCollection(\"test.dialogPostEntity\", { \"dialogId\": \"hashed\"});
+        db.dialogEntity.createIndex({ \"user0\": 1, \"user1\": 1}, {\"background\":true});
+        sh.shardCollection(\"test.dialogEntity\", { \"user0\": 1, \"user1\": 1});
+      '
+      "
+    depends_on:
+      - mongodb-router
+      - mongodb-config
+      - mongodb-shard-0
+      - mongodb-shard-1
+
+  mongodb-router:
+    image: mongo:7.0.8
+    command: mongos --configdb mongodb-config-rs/mongodb-config:27017 --bind_ip_all --port 27017
+    ports:
+      - 27017:27017
+    extra_hosts:
+      - mongodb-router:127.0.0.1
+
+  mongodb-config:
+    image: mongo:7.0.8
+    command: mongod --configsvr --replSet mongodb-config-rs --bind_ip_all --port 27017
+    ports:
+      - 27018:27017
+    extra_hosts:
+      - mongodb-config:127.0.0.1
+
+  mongodb-shard-0:
+    image: mongo:7.0.8
+    command: mongod --shardsvr --replSet mongodb-shard-0-rs --bind_ip_all --port 27017
+    ports:
+      - 27019:27017
+    extra_hosts:
+      - mongodb-shard-0:127.0.0.1
+
+  mongodb-shard-1:
+    image: mongo:7.0.8
+    command: mongod --shardsvr --replSet mongodb-shard-1-rs --bind_ip_all --port 27017
+    ports:
+      - 27020:27017
+    extra_hosts:
+      - mongodb-shard-1:127.0.0.1

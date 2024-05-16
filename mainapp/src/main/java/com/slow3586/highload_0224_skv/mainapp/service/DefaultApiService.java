@@ -12,7 +12,6 @@ import com.slow3586.highload_0224_skv.api.model.UserRegisterPost200Response;
 import com.slow3586.highload_0224_skv.api.model.UserRegisterPostRequest;
 import com.slow3586.highload_0224_skv.mainapp.entity.UserEntity;
 import com.slow3586.highload_0224_skv.mainapp.exception.IncorrectLoginException;
-import com.slow3586.highload_0224_skv.mainapp.exception.IncorrectPasswordException;
 import com.slow3586.highload_0224_skv.mainapp.exception.UserNotFoundException;
 import com.slow3586.highload_0224_skv.mainapp.mapper.PostMapper;
 import com.slow3586.highload_0224_skv.mainapp.mapper.UserMapper;
@@ -30,16 +29,12 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.math.BigDecimal;
-import java.security.Principal;
 import java.util.UUID;
 
 @Service
