@@ -3,8 +3,6 @@ package com.slow3586.highload_0224_skv.mainapp.service;
 import com.slow3586.highload_0224_skv.api.model.DialogMessage;
 import com.slow3586.highload_0224_skv.commonapi.DialogPostEntity;
 import com.slow3586.highload_0224_skv.commonapi.SendDialogPostDto;
-import io.micrometer.observation.ObservationRegistry;
-import io.micrometer.observation.annotation.Observed;
 import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.observability.micrometer.Micrometer;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 

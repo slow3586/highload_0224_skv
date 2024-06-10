@@ -19,8 +19,6 @@ import com.slow3586.highload_0224_skv.mainapp.repository.read.UserReadRepository
 import com.slow3586.highload_0224_skv.mainapp.repository.write.UserWriteRepository;
 import com.slow3586.highload_0224_skv.mainapp.security.JwtService;
 import com.slow3586.highload_0224_skv.mainapp.security.ReactiveSecurityWebFilterChainConfig;
-import io.micrometer.observation.ObservationRegistry;
-import io.micrometer.observation.annotation.Observed;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
