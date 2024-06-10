@@ -3,6 +3,8 @@ package com.slow3586.highload_0224_skv.mainapp.service;
 import com.slow3586.highload_0224_skv.api.model.DialogMessage;
 import com.slow3586.highload_0224_skv.commonapi.DialogPostEntity;
 import com.slow3586.highload_0224_skv.commonapi.SendDialogPostDto;
+import io.micrometer.observation.ObservationRegistry;
+import io.micrometer.observation.annotation.Observed;
 import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.observability.micrometer.Micrometer;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -31,6 +34,7 @@ public class DialogService {
         @NonNull final UUID currentUserId,
         @NonNull final UUID userId
     ) {
+        log.info("#getDialogPosts started: {} {}", currentUserId, userId);
         return getClient()
             .get()
             .uri(builder ->
@@ -41,6 +45,7 @@ public class DialogService {
             .retrieve()
             .bodyToMono(UUID.class)
             .switchIfEmpty(Mono.error(new IllegalArgumentException("No dialog")))
+            .doOnNext(dialogId -> log.info("#getDialogPosts got dialogId: {} {} {}", currentUserId, userId, dialogId))
             .flatMapMany(dialogId ->
                 getClient()
                     .get()
@@ -53,7 +58,8 @@ public class DialogService {
             .map(dialogPostEntity -> new DialogMessage(
                 currentUserId.toString(),
                 userId.toString(),
-                dialogPostEntity.getText()));
+                dialogPostEntity.getText()))
+            .doOnNext(msg -> log.info("#getDialogPosts got dialogMessage: {} {} {}", currentUserId, userId, msg));
     }
 
     public Mono<Void> sendDialogPost(
