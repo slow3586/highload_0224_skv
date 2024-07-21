@@ -39,7 +39,9 @@ public class ReactiveSecurityWebFilterChainConfig {
             .authorizeExchange(request ->
                 request.pathMatchers(
                         "",
+                        "/",
                         "/login",
+                        "/user/register",
                         "/webjars/swagger-ui/**",
                         "/swagger-ui/**",
                         "/v3/api-docs/**",

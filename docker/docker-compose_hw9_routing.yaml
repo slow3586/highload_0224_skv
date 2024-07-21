@@ -1,0 +1,202 @@
+name: highload_0224_skv_hw9_routing
+services:
+  haproxy:
+    image: haproxy:3.0.3
+    ports: [ "5432:5432" ]
+    depends_on:
+      postgresslave0:
+        condition: service_healthy
+      postgresslave1:
+        condition: service_healthy
+    volumes:
+      - './haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg'
+
+  nginx:
+    image: nginx:1.27.0-alpine
+    ports: [ "80:8080", "8080:8080" ]
+    depends_on:
+      mainapp0:
+        condition: service_started
+      mainapp1:
+        condition: service_started
+    volumes:
+      - './nginx.conf:/etc/nginx/nginx.conf'
+
+  mainapp0:
+    build: ..
+    entrypoint: [
+      "mvn",
+      "-f", "./mainapp/pom.xml",
+      "spring-boot:run",
+      "-Dmaven.test.skip=true",
+    ]
+    depends_on:
+      postgresmain:
+        condition: service_healthy
+      haproxy:
+        condition: service_started
+    environment:
+      - spring.datasource.url=jdbc:postgresql://postgresmain:5432/postgres
+      - spring.datasource.username=postgres
+      - spring.datasource.password=postgres
+      - spring.read-datasource.url=jdbc:postgresql://haproxy:5432/postgres
+      - spring.read-datasource.username=postgres
+      - spring.read-datasource.password=postgres
+      - app.debug.fillDbWithRandomData=false
+      - app.debug.fillDialogDb=false
+      - server.port=8080
+      - spring.rabbitmq.host=rabbitmq
+      - spring.rabbitmq.username=admin
+      - spring.rabbitmq.password=admin
+      - spring.rabbitmq.port=5672
+      - dialog-app-url=http://dialogserver-app:8083
+    expose: [ "8080" ]
+    healthcheck:
+      test: "curl --fail --silent 127.0.0.1:8080/actuator/health | grep UP || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+  mainapp1:
+    build: ..
+    entrypoint: [
+      "mvn",
+      "-f", "./mainapp/pom.xml",
+      "spring-boot:run",
+      "-Dmaven.test.skip=true",
+    ]
+    depends_on:
+      postgresmain:
+        condition: service_healthy
+      haproxy:
+        condition: service_started
+    environment:
+      - spring.datasource.url=jdbc:postgresql://postgresmain:5432/postgres
+      - spring.datasource.username=postgres
+      - spring.datasource.password=postgres
+      - spring.read-datasource.url=jdbc:postgresql://haproxy:5432/postgres
+      - spring.read-datasource.username=postgres
+      - spring.read-datasource.password=postgres
+      - app.debug.fillDbWithRandomData=false
+      - app.debug.fillDialogDb=false
+      - server.port=8080
+      - spring.rabbitmq.host=rabbitmq
+      - spring.rabbitmq.username=admin
+      - spring.rabbitmq.password=admin
+      - spring.rabbitmq.port=5672
+      - dialog-app-url=http://dialogserver-app:8083
+    expose: [ "8080" ]
+    healthcheck:
+      test: "curl --fail --silent 127.0.0.1:8080/actuator/health | grep UP || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  postgresmain:
+    image: postgres:14-alpine
+    user: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ../sql/pg_hba_hw3.conf:/opt/pg_hba.conf
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/0_init_hw1.sql
+      - ../sql/index_hw2.sql:/docker-entrypoint-initdb.d/1_index_hw2.sql
+      - ../sql/posts_hw4.sql:/docker-entrypoint-initdb.d/3_posts_hw4.sql
+      - ../sql/replicator_hw3.sql:/docker-entrypoint-initdb.d/4_replicator_hw3.sql
+    expose: ["5432"]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    command: >
+      postgres 
+      -c ssl=off
+      -c wal_level=replica 
+      -c max_wal_senders=4
+      -c hot_standby=on
+      -c hba_file=/opt/pg_hba.conf
+      -c synchronous_commit=true
+
+  postgresslave0:
+    image: postgres:14-alpine
+    user: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    depends_on:
+      postgresmain:
+        condition: service_healthy
+    volumes:
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/0_init_hw1.sql
+      - ../sql/index_hw2.sql:/docker-entrypoint-initdb.d/1_index_hw2.sql
+      - ../sql/posts_hw4.sql:/docker-entrypoint-initdb.d/3_posts_hw4.sql
+    expose: ["5432"]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    command: |
+      bash -c "
+      until pg_basebackup --username=replicator -w --pgdata=/var/lib/postgresql/data -R --slot=replication_slot_1 --host=postgresmain --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres -c wal_level=hot_standby -c hot_standby=on 
+      "
+  postgresslave1:
+    image: postgres:14-alpine
+    user: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    depends_on:
+      postgresmain:
+        condition: service_healthy
+    volumes:
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/0_init_hw1.sql
+      - ../sql/index_hw2.sql:/docker-entrypoint-initdb.d/1_index_hw2.sql
+      - ../sql/posts_hw4.sql:/docker-entrypoint-initdb.d/3_posts_hw4.sql
+    expose: ["5432"]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    command: |
+      bash -c "
+      until pg_basebackup --username=replicator -w --pgdata=/var/lib/postgresql/data -R --slot=replication_slot_2 --host=postgresmain --port=5432
+      do
+      echo 'Waiting for primary to connect...'
+      sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chmod 0700 /var/lib/postgresql/data
+      postgres -c wal_level=hot_standby -c hot_standby=on 
+      "
+
+  rabbitmq:
+    build:
+      dockerfile: ../websocketserver/rabbit.Dockerfile
+    ports:
+      - 5672:5672
+      - 15672:15672
+    expose:
+      - 61613
+    environment:
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=admin
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 5s
+      timeout: 5s
+      retries: 3
