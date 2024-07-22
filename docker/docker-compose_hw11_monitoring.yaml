@@ -1,4 +1,4 @@
-name: highload_0224_skv_hw10_monitoring
+name: highload_0224_skv_hw11_monitoring
 
 x-healthcheck: &healthcheck
   interval: 5s
