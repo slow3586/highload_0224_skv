@@ -1,0 +1,277 @@
+name: highload_0224_skv_hw10_monitoring
+
+x-healthcheck: &healthcheck
+  interval: 5s
+  timeout: 5s
+  retries: 30
+  start_period: 5s
+
+x-logging: &logging
+  driver: gelf
+  options:
+    gelf-address: "udp://host.docker.internal:12201"
+
+services:
+  main-app:
+    build: ../mainapp
+    logging: *logging
+    depends_on:
+      dialogserver-app:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - spring.datasource.url=jdbc:postgresql://postgres:5432/postgres
+      - spring.datasource.username=postgres
+      - spring.datasource.password=postgres
+      - spring.read-datasource.url=jdbc:postgresql://postgres:5432/postgres
+      - spring.read-datasource.username=postgres
+      - spring.read-datasource.password=postgres
+      - app.debug.fillDbWithRandomData=true
+      - app.debug.fillDbWithRandomDataThreads=10
+      - server.port=8080
+      - spring.rabbitmq.host=rabbitmq
+      - spring.rabbitmq.username=admin
+      - spring.rabbitmq.password=admin
+      - spring.rabbitmq.port=5672
+      - dialog-app-url=http://dialogserver-app:8080
+      - disable-websocket-app=true
+      - management.zipkin.tracing.endpoint=http://zipkin:9411/api/v2/spans
+    ports: ["8080:8080"]
+    healthcheck:
+      test: "curl --fail --silent 127.0.0.1:8080/actuator/health | grep UP || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  dialogserver-app:
+    build: ../dialogserver
+    logging: *logging
+    expose: ["8080"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      mongodb-init:
+        condition: service_completed_successfully
+    environment:
+      - spring.cache.type=redis
+      - spring.data.redis.host=redis
+      - spring.data.redis.port=6379
+      - spring.data.redis.password=redis
+      - spring.data.mongodb.host=mongodb-router
+      - spring.data.mongodb.port=27017
+      - server.port=8080
+      - enable-cache=true
+      - management.zipkin.tracing.endpoint=http://zipkin:9411/api/v2/spans
+    healthcheck:
+      test: "curl --fail --silent 127.0.0.1:8080/actuator/health | grep UP || exit 1"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  postgres:
+    image: postgres:14-alpine
+    logging: *logging
+    user: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ../sql/init_hw1.sql:/docker-entrypoint-initdb.d/0_init_hw1.sql
+      - ../sql/index_hw2.sql:/docker-entrypoint-initdb.d/1_index_hw2.sql
+      - ../sql/posts_hw4.sql:/docker-entrypoint-initdb.d/3_posts_hw4.sql
+    expose: ["5432"]
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    command: >
+      postgres 
+      -c ssl=off
+
+  redis:
+    image: redis:6.2.14-alpine3.19
+    logging: *logging
+    expose: ["6379"]
+    environment:
+      - REDIS_PASSWORD=redis
+      - REDIS_PORT=6379
+      - REDIS_DATABASES=16
+
+  mongodb-init:
+    image: mongo:7.0.8
+    logging: *logging
+    entrypoint: [ "/bin/sh", "-c" ]
+    restart: no
+    command: |
+      "
+      set -x
+      
+      sleep 2;
+      
+      mongosh --host mongodb-config:27017 --eval '
+        rs.initiate({
+            _id: \"mongodb-config-rs\",
+            configsvr: true,
+            version: 1,
+            members: [{ _id: 0, host: \"mongodb-config:27017\" }]
+        })
+      '
+      
+      sleep 3;
+      
+      mongosh --host mongodb-shard-0:27017 --eval '
+        rs.initiate({
+          _id: \"mongodb-shard-0-rs\",
+          version: 1,
+          members: [{ _id: 0, host: \"mongodb-shard-0:27017\" },]
+        })
+      '
+      mongosh --host mongodb-shard-1:27017 --eval '
+        rs.initiate({
+          _id: \"mongodb-shard-1-rs\",
+          version: 1,
+          members: [{ _id: 0, host: \"mongodb-shard-1:27017\" },]
+        })
+      '
+      
+      sleep 5;
+      
+      mongosh --host mongodb-router:27017 --eval '
+        sh.addShard(\"mongodb-shard-0-rs/mongodb-shard-0:27017\");
+        sh.addShard(\"mongodb-shard-1-rs/mongodb-shard-1:27017\");
+      '
+      
+      sleep 5;
+      
+      mongosh --host mongodb-router:27017 --eval '
+        db.dialogPostEntity.createIndex({ \"dialogId\": \"hashed\"}, {\"background\":true});
+        sh.shardCollection(\"test.dialogPostEntity\", { \"dialogId\": \"hashed\"});
+        db.dialogEntity.createIndex({ \"user0\": 1, \"user1\": 1}, {\"background\":true});
+        sh.shardCollection(\"test.dialogEntity\", { \"user0\": 1, \"user1\": 1});
+      '
+      "
+    depends_on:
+      - mongodb-router
+      - mongodb-config
+      - mongodb-shard-0
+      - mongodb-shard-1
+
+  mongodb-router:
+    image: mongo:7.0.8
+    logging: *logging
+    command: mongos --configdb mongodb-config-rs/mongodb-config:27017 --bind_ip_all --port 27017
+    ports:
+      - 27017:27017
+    extra_hosts:
+      - mongodb-router:127.0.0.1
+
+  mongodb-config:
+    image: mongo:7.0.8
+    logging: *logging
+    command: mongod --configsvr --replSet mongodb-config-rs --bind_ip_all --port 27017
+    ports:
+      - 27018:27017
+    extra_hosts:
+      - mongodb-config:127.0.0.1
+
+  mongodb-shard-0:
+    image: mongo:7.0.8
+    logging: *logging
+    command: mongod --shardsvr --replSet mongodb-shard-0-rs --bind_ip_all --port 27017
+    ports:
+      - 27019:27017
+    extra_hosts:
+      - mongodb-shard-0:127.0.0.1
+
+  mongodb-shard-1:
+    image: mongo:7.0.8
+    logging: *logging
+    command: mongod --shardsvr --replSet mongodb-shard-1-rs --bind_ip_all --port 27017
+    ports:
+      - 27020:27017
+    extra_hosts:
+      - mongodb-shard-1:127.0.0.1
+
+  logstash:
+    image: logstash:8.14.1
+    volumes:
+      - ./logstash.conf:/etc/logstash/logstash.conf
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    command: logstash -f /etc/logstash/logstash.conf
+    restart: always
+    ports: [ "5044", "12201:12201/udp" ]
+    environment:
+      LS_JAVA_OPTS: '-Xms64m -Xmx512m'
+    healthcheck:
+      test: "curl --location --output /dev/null --head --silent --fail 127.0.0.1:9600 || exit 1"
+      <<: *healthcheck
+
+  elasticsearch:
+    image: elasticsearch:8.14.1
+    logging: *logging
+    restart: always
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: false
+      ES_JAVA_OPTS: '-Xms128m -Xmx512m'
+    expose: ["9200"]
+    healthcheck:
+      test: "curl --location --output /dev/null --head --silent --fail 127.0.0.1:9200 || exit 1"
+      <<: *healthcheck
+
+  kibana:
+    image: kibana:8.14.1
+    logging: *logging
+    restart: always
+    ports: ["5601:5601"]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    healthcheck:
+      test: "curl --location --output /dev/null --head --silent --fail 127.0.0.1:5601 || exit 1"
+      <<: *healthcheck
+
+  zipkin:
+    image: openzipkin/zipkin:3.4
+    logging: *logging
+    expose: ["9411"]
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    logging: *logging
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+    ports: [ "9090:9090" ]
+    healthcheck:
+      test: "wget --no-verbose --tries=1 --spider 127.0.0.1:9090 || exit 1"
+      <<: *healthcheck
+
+  cadvisor:
+    image: google/cadvisor:v0.33.0
+    logging: *logging
+    expose: [ "8080" ]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    healthcheck:
+      test: "curl --location --output /dev/null --head --silent --fail 127.0.0.1:8080 || exit 1"
+      <<: *healthcheck
+
+  grafana:
+    image: grafana/grafana:10.4.4
+    logging: *logging
+    ports: [ "3000:3000" ]
+    healthcheck:
+      test: "curl --location --output /dev/null --head --silent --fail 127.0.0.1:3000 || exit 1"
+      <<: *healthcheck

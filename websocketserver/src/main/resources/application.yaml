@@ -11,13 +11,20 @@ spring:
     username: admin
 management:
   endpoints:
-    enabled-by-default: false
     web:
       exposure:
-        include: "*"
+        include: health,prometheus
   endpoint:
     health:
       enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
   tracing:
     enabled: true
     sampling.probability: 1.0

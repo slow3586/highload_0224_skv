@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 5s
+scrape_configs:
+  - job_name: 'main-app'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets:
+          - 'main-app:8080'
+  - job_name: 'websocketserver-app'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets:
+          - 'websocketserver-app:8080'
+  - job_name: 'dialogserver-app'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets:
+          - 'dialogserver-app:8080'
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets:
+          - 'cadvisor:8080'

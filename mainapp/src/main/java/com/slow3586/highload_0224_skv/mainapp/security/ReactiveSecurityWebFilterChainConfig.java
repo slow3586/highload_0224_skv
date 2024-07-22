@@ -45,7 +45,8 @@ public class ReactiveSecurityWebFilterChainConfig {
                         "/webjars/swagger-ui/**",
                         "/swagger-ui/**",
                         "/v3/api-docs/**",
-                        "/actuator/health"
+                        "/actuator/health",
+                        "/actuator/prometheus"
                     ).permitAll()
                     .anyExchange().authenticated()
             ).authenticationManager(reactiveAuthenticationManager)
